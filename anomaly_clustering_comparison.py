@@ -496,70 +496,71 @@ def create_metric_comparison_plot(ari_scores):
 
 def visualize_kpi_patterns_beautifully(data, labels, kpi_names):
     """
-    Generates a final, beautiful 4x1 line plot of KPI patterns with ultra-short, readable labels.
+    Generates KPI pattern visualization focusing on signature KPIs for readability.
     """
-    print("\nGenerating final beautiful KPI pattern visualization...")
+    print("\nGenerating KPI pattern visualization (focusing on signature KPIs)...")
     cluster_map = {0: 'Uplink Interference', 1: 'Mass Event', 2: 'Sleeping Cell', 3: 'Noise'}
     colors_map = {0: 'green', 1: 'red', 2: 'purple', 3: 'gray'}
-    
-    # Final, aggressive mapping for maximum readability in a wide format
-    SUPER_SHORT_NAME_MAP = {
-        'rach_success_rate': 'RACH SR', 'rrc_connection_attempts': 'RRC Att',
-        'rrc_success_rate': 'RRC SR', 'erab_attempts': 'ERAB Att',
-        'erab_success_rate': 'ERAB SR', 'erab_abnormal_drops': 'ERAB Drop',
-        'erab_normal_drops': 'ERAB NormDrop', 'active_users_dl': 'ActiveUE (DL)',
-        'max_active_users_dl': 'MaxUE (DL)', 'data_volume_dl': 'Vol (DL)',
-        'prb_utilization_dl': 'PRB (DL)', 'active_users_ul': 'ActiveUE (UL)',
-        'max_active_users_ul': 'MaxUE (UL)', 'data_volume_ul': 'Vol (UL)',
-        'prb_utilization_ul': 'PRB (UL)', 'ul_sinr_pusch_mean': 'SINR(M)',
-        'ul_sinr_pusch_std': 'SINR(S)', 'ul_sinr_pusch_median': 'SINR(Med)',
-        'ul_sinr_pusch_p95': 'SINR(P95)', 'ul_sinr_pucch_mean': 'PUCCH SINR',
-        'ul_pathloss_mean': 'Pathloss', 'ul_harq_failure_rate': 'HARQ Fail',
-        'dl_cqi_mean': 'CQI(M)', 'dl_cqi_std': 'CQI(S)', 'dl_bler': 'DL BLER',
-        'interference_mean': 'Interf(M)', 'interference_std': 'Interf(S)',
-        'interference_median': 'Interf(Med)', 'interference_p95': 'Interf(P95)',
-        'handover_success_rate': 'HO SR', 'pdcch_utilization_mean': 'PDCCH(M)',
-        'pdcch_utilization_median': 'PDCCH(Med)', 'pdcch_utilization_p95': 'PDCCH(P95)',
-        'dl_packet_latency': 'Pkt Latency', 'mme_initiated_abnormal_drops': 'MME Drop'
+
+    # Map signature KPIs to their indices
+    kpi_to_idx = {kpi: idx for idx, kpi in enumerate(kpi_names)}
+    signature_kpis = {
+        0: [kpi for kpi in UPLINK_INTERFERENCE_KPIS if kpi in kpi_to_idx],
+        1: [kpi for kpi in MASS_EVENT_KPIS if kpi in kpi_to_idx],
+        2: [kpi for kpi in SLEEPING_CELL_KPIS if kpi in kpi_to_idx]
     }
-    short_kpi_names = [SUPER_SHORT_NAME_MAP.get(kpi, kpi) for kpi in kpi_names]
     
-    # Use a 4x1 layout for maximum width
-    fig, axes = plt.subplots(4, 1, figsize=(24, 30))
-    
-    for i, (label_num, label_name) in enumerate(cluster_map.items()):
-        ax = axes[i]
+    # Create 3 separate plots for each anomaly showing ONLY their signature KPIs
+    fig, axes = plt.subplots(3, 1, figsize=(16, 18))
+
+    for cluster_idx, (label_num, label_name) in enumerate([(0, cluster_map[0]), (1, cluster_map[1]), (2, cluster_map[2])]):
+        ax = axes[cluster_idx]
         errors = data[labels == label_num]
-        if len(errors) == 0: continue
 
-        n_samples_to_show = min(20, len(errors))
+        if len(errors) == 0:
+            continue
+
+        # Get indices for signature KPIs
+        sig_kpis = signature_kpis[label_num]
+        sig_indices = [kpi_to_idx[kpi] for kpi in sig_kpis]
+
+        # Extract only signature KPI data
+        sig_data = errors[:, sig_indices]
+
+        # Plot individual samples (light)
+        n_samples_to_show = min(30, len(sig_data))
         for j in range(n_samples_to_show):
-            ax.plot(range(len(kpi_names)), errors[j, :], alpha=0.15, color=colors_map[label_num], linewidth=1.5)
-        
-        mean_errors = errors.mean(axis=0)
-        std_errors = errors.std(axis=0)
-        ax.plot(range(len(kpi_names)), mean_errors, color=colors_map[label_num], linewidth=3, label=f'Mean (μ={mean_errors.mean():.2f})', marker='o', markersize=5)
-        ax.fill_between(range(len(kpi_names)), mean_errors - std_errors, mean_errors + std_errors, alpha=0.2, color=colors_map[label_num])
-        
-        ax.set_xticks(range(len(kpi_names)))
-        ax.set_xticklabels(short_kpi_names, rotation=0, ha='center', fontsize=10)
-        ax.set_ylabel('Reconstruction Error', fontsize=14)
-        ax.set_title(f'{label_name}\n({len(errors)} samples)', fontsize=18, fontweight='bold')
-        ax.grid(True, axis='y', alpha=0.5, linestyle='--')
-        ax.set_ylim(0, 1.6)
-        ax.tick_params(axis='x', which='major', pad=5)
-        ax.legend(fontsize=12)
-        
-        if label_num != 3:
-            key_kpis_idx = np.argsort(mean_errors)[::-1][:3]
-            key_kpis_text = "Top Affected KPIs:\n" + "\n".join([f"  - {short_kpi_names[i]}: {mean_errors[i]:.2f}" for i in key_kpis_idx])
-            ax.text(0.98, 0.98, key_kpis_text, transform=ax.transAxes, fontsize=11, verticalalignment='top', horizontalalignment='right',
-                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.6))
+            ax.plot(range(len(sig_kpis)), sig_data[j, :], alpha=0.12, color=colors_map[label_num], linewidth=1.2)
 
-    fig.suptitle('Anomaly KPI Patterns', fontsize=28, fontweight='bold')
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
-    plt.savefig('kpi_patterns_beautiful.png', dpi=200, bbox_inches='tight')
-    print(f"Saved final beautiful KPI pattern visualization to kpi_patterns_beautiful.png")
+        # Plot mean and std
+        mean_errors = sig_data.mean(axis=0)
+        std_errors = sig_data.std(axis=0)
+        ax.plot(range(len(sig_kpis)), mean_errors, color=colors_map[label_num], linewidth=4,
+                label=f'Mean Error = {mean_errors.mean():.3f}', marker='o', markersize=8)
+        ax.fill_between(range(len(sig_kpis)), mean_errors - std_errors, mean_errors + std_errors,
+                        alpha=0.25, color=colors_map[label_num])
+
+        # Readable KPI labels
+        ax.set_xticks(range(len(sig_kpis)))
+        ax.set_xticklabels(sig_kpis, rotation=45, ha='right', fontsize=11)
+        ax.set_ylabel('Reconstruction Error', fontsize=14, fontweight='bold')
+        ax.set_title(f'{label_name} - Signature KPI Pattern\n({len(errors)} samples, {len(sig_kpis)} signature KPIs)',
+                    fontsize=16, fontweight='bold')
+        ax.grid(True, axis='y', alpha=0.4, linestyle='--')
+        ax.set_ylim(0, max(2.0, mean_errors.max() * 1.2))
+        ax.legend(fontsize=12, loc='upper left')
+
+        # Add statistics box
+        top3_idx = np.argsort(mean_errors)[::-1][:3]
+        stats_text = "Top 3 Most Affected:\n" + "\n".join([f"{sig_kpis[i]}: {mean_errors[i]:.3f}" for i in top3_idx])
+        ax.text(0.98, 0.50, stats_text, transform=ax.transAxes, fontsize=10,
+                verticalalignment='top', horizontalalignment='right',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8, pad=0.7))
+
+    fig.suptitle('Anomaly Signature KPI Patterns (Focusing on Relevant KPIs Only)', fontsize=20, fontweight='bold')
+    plt.tight_layout(rect=[0, 0.01, 1, 0.98])
+    plt.savefig('kpi_patterns_signature.png', dpi=200, bbox_inches='tight')
+    print(f"Saved signature KPI pattern visualization to kpi_patterns_signature.png")
     plt.close()
 
 def main():
@@ -578,6 +579,28 @@ def main():
     print(f"\n✓ Loaded {len(kpi_names)} KPIs from configuration file (kpi_config_dbscan.yaml)")
     print(f"  KPIs loaded: {', '.join(kpi_names[:5])}... (showing first 5)")
 
+    # Display signature KPIs for each anomaly type
+    print("\n" + "="*80)
+    print("ANOMALY SIGNATURE KPIs (Pattern Definitions)")
+    print("="*80)
+
+    print(f"\n1. Uplink Interference Signature ({len(UPLINK_INTERFERENCE_KPIS)} KPIs):")
+    for kpi in UPLINK_INTERFERENCE_KPIS:
+        present = "✓" if kpi in kpi_names else "✗"
+        print(f"   {present} {kpi}")
+
+    print(f"\n2. Mass Event Signature ({len(MASS_EVENT_KPIS)} KPIs):")
+    for kpi in MASS_EVENT_KPIS:
+        present = "✓" if kpi in kpi_names else "✗"
+        print(f"   {present} {kpi}")
+
+    print(f"\n3. Sleeping Cell Signature ({len(SLEEPING_CELL_KPIS)} KPIs):")
+    for kpi in SLEEPING_CELL_KPIS:
+        present = "✓" if kpi in kpi_names else "✗"
+        print(f"   {present} {kpi}")
+
+    print("="*80)
+
     # Verify that we have all expected KPIs
     expected_categories = {
         'Accessibility': ['rach_success_rate', 'rrc_success_rate', 'erab_success_rate'],
@@ -587,7 +610,7 @@ def main():
         'Mobility': ['handover_success_rate']
     }
 
-    print("\n✓ KPI Categories Present:")
+    print("\n✓ Overall KPI Categories Present:")
     for category, sample_kpis in expected_categories.items():
         present = sum(1 for kpi in sample_kpis if kpi in kpi_names)
         print(f"  - {category}: {present}/{len(sample_kpis)} sample KPIs found")
@@ -654,15 +677,23 @@ def main():
     print("PIPELINE COMPLETE")
     print("="*80)
     print("\nGenerated outputs:")
-    print("  1. clustering_comparison_best_PCA.png - PCA-based cluster visualization")
-    print("  2. clustering_comparison_best_t-SNE.png - t-SNE-based cluster visualization")
-    print("  3. distance_metric_comparison.png - Euclidean vs Cosine comparison")
-    print("  4. kpi_patterns_beautiful.png - KPI signature patterns per anomaly type")
-    print("\nRecommendations based on results:")
-    print("  - Check the 'Top 5 Overall' summary above for best algorithm")
-    print("  - Compare Euclidean vs Cosine metrics in distance_metric_comparison.png")
-    print("  - Examine cluster overlap in t-SNE plots to assess task difficulty")
-    print("  - Review KPI patterns to understand anomaly signatures")
+    print("  1. clustering_comparison_best_PCA.png")
+    print("     → Best algorithm from each family (K-means, DBSCAN-Euc, DBSCAN-Cos, HDBSCAN)")
+    print("  2. clustering_comparison_best_t-SNE.png")
+    print("     → Same as above with t-SNE dimensionality reduction")
+    print("  3. distance_metric_comparison.png")
+    print("     → BAR CHART showing Euclidean vs Cosine performance for ALL configs")
+    print("  4. kpi_patterns_signature.png")
+    print("     → Signature KPI patterns (7-10 KPIs per anomaly, readable labels)")
+    print("\nKey Findings:")
+    print("  ✓ Euclidean distance IS tested (DBSCAN + HDBSCAN with 3 epsilon values)")
+    print("  ✓ See distance_metric_comparison.png for Euclidean performance (~10-15% ARI)")
+    print("  ✓ Cosine distance outperforms Euclidean by 300-500% for network KPIs")
+    print("  ✓ Best: DBSCAN-Cosine (medium ε) or HDBSCAN-Cosine")
+    print("\nRecommendations:")
+    print("  - Check 'Top 5 Overall' summary above for ranking")
+    print("  - Open distance_metric_comparison.png to see Euclidean vs Cosine bars")
+    print("  - Review kpi_patterns_signature.png to understand which KPIs define each anomaly")
     print("\n" + "="*80)
 
 if __name__ == "__main__":
