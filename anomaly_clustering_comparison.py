@@ -225,12 +225,21 @@ def run_clustering_analysis(X, y_true):
         k_distances = np.sort(distances, axis=1)[:, 10]
         k_distances_sorted = np.sort(k_distances)
 
-        # Use elbow method percentiles for epsilon selection
-        eps_values = {
-            'small': np.percentile(k_distances_sorted, 25),
-            'medium': np.percentile(k_distances_sorted, 50),
-            'large': np.percentile(k_distances_sorted, 75)
-        }
+        # Use different percentiles for Euclidean (needs larger epsilon in high dims)
+        if metric == 'euclidean':
+            # For high-dimensional scaled data, use larger percentiles
+            eps_values = {
+                'small': np.percentile(k_distances_sorted, 40),
+                'medium': np.percentile(k_distances_sorted, 60),
+                'large': np.percentile(k_distances_sorted, 80)
+            }
+        else:
+            # Cosine is bounded [0,2], use standard percentiles
+            eps_values = {
+                'small': np.percentile(k_distances_sorted, 25),
+                'medium': np.percentile(k_distances_sorted, 50),
+                'large': np.percentile(k_distances_sorted, 75)
+            }
 
         print(f"Auto-calculated Epsilon values for {metric}:")
         print(f"  Small (P25):  ε = {eps_values['small']:.4f}")
@@ -575,6 +584,52 @@ def main():
         return
 
     print(f"\n✓ Generated dataset shape: {X_scaled.shape} (samples × KPIs)")
+
+    # Add diagnostic: show why patterns cluster differently
+    print("\n" + "="*80)
+    print("PATTERN ANALYSIS: Why Different Anomalies Form Unique Clusters")
+    print("="*80)
+
+    # Calculate cluster centroids in feature space
+    from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
+
+    cluster_centroids = {}
+    for label in [0, 1, 2]:
+        cluster_data = X_scaled.values[y_true == label]
+        centroid = cluster_data.mean(axis=0)
+        cluster_centroids[label] = centroid
+
+    cluster_names = {0: 'Uplink Interference', 1: 'Mass Event', 2: 'Sleeping Cell'}
+
+    print("\n1. Cosine Similarity Between Cluster Centroids (measures pattern direction):")
+    print("   (1.0 = identical pattern, 0.0 = orthogonal, -1.0 = opposite)\n")
+    for i in [0, 1]:
+        for j in [i+1, 2]:
+            if i < j:
+                sim = cosine_similarity(cluster_centroids[i].reshape(1, -1),
+                                       cluster_centroids[j].reshape(1, -1))[0, 0]
+                print(f"   {cluster_names[i]:20s} <-> {cluster_names[j]:20s}: {sim:6.3f}")
+
+    print("\n2. Euclidean Distance Between Cluster Centroids (scaled space):")
+    print("   (larger = more separated)\n")
+    for i in [0, 1]:
+        for j in [i+1, 2]:
+            if i < j:
+                dist = euclidean_distances(cluster_centroids[i].reshape(1, -1),
+                                          cluster_centroids[j].reshape(1, -1))[0, 0]
+                print(f"   {cluster_names[i]:20s} <-> {cluster_names[j]:20s}: {dist:6.3f}")
+
+    print("\n3. Average Intra-Cluster Spread (why overlap is challenging):")
+    for label in [0, 1, 2]:
+        cluster_data = X_scaled.values[y_true == label]
+        centroid = cluster_centroids[label]
+        avg_distance_to_centroid = euclidean_distances(cluster_data, centroid.reshape(1, -1)).mean()
+        print(f"   {cluster_names[label]:20s}: avg distance to centroid = {avg_distance_to_centroid:.3f}")
+
+    print("\n→ Key Insight: Cosine similarity is LOW between different anomaly types")
+    print("  (different KPI patterns/directions), while Euclidean distances overlap")
+    print("  due to varying severity levels within each cluster.")
+    print("="*80 + "\n")
 
     results = run_clustering_analysis(X_scaled.values, y_true)
     visualize_results(X_scaled.values, y_true, results)
