@@ -99,18 +99,23 @@ def generate_synthetic_data(kpi_list, n_points_per_cluster=300, n_noise=200):
 
     # Severe cases (high reconstruction error)
     for i in range(start, start + severity_split[0]):
-        data[i, uplink_indices] = np.random.gamma(shape=3.0, scale=0.35, size=len(uplink_indices))
-        data[i, uplink_indices] += np.random.normal(0.7, 0.2, size=len(uplink_indices))
+        for kpi_idx in uplink_indices:
+            # 10% chance this KPI is NOT anomalous (partial anomaly)
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=3.0, scale=0.35) + np.random.normal(0.7, 0.2)
+            # else: remains at baseline
 
     # Moderate cases (medium reconstruction error - overlaps with mild and normal)
     for i in range(start + severity_split[0], start + severity_split[1]):
-        data[i, uplink_indices] = np.random.gamma(shape=2.5, scale=0.22, size=len(uplink_indices))
-        data[i, uplink_indices] += np.random.normal(0.4, 0.18, size=len(uplink_indices))
+        for kpi_idx in uplink_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=2.5, scale=0.22) + np.random.normal(0.4, 0.18)
 
     # Mild cases (low reconstruction error - significant overlap)
     for i in range(start + severity_split[1], end):
-        data[i, uplink_indices] = np.random.gamma(shape=2.0, scale=0.15, size=len(uplink_indices))
-        data[i, uplink_indices] += np.random.normal(0.2, 0.12, size=len(uplink_indices))
+        for kpi_idx in uplink_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=2.0, scale=0.15) + np.random.normal(0.2, 0.12)
 
     add_secondary_effects(start, end, uplink_indices, correlation_strength=0.4)
 
@@ -123,19 +128,22 @@ def generate_synthetic_data(kpi_list, n_points_per_cluster=300, n_noise=200):
     # Severe: sudden mass event (20%)
     severe_count = int(0.2 * n_points_per_cluster)
     for i in range(start, start + severe_count):
-        data[i, mass_event_indices] = np.random.gamma(shape=3.5, scale=0.3, size=len(mass_event_indices))
-        data[i, mass_event_indices] += np.random.normal(0.8, 0.15, size=len(mass_event_indices))
+        for kpi_idx in mass_event_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=3.5, scale=0.3) + np.random.normal(0.8, 0.15)
 
     # Moderate: building congestion (50%)
     moderate_count = int(0.5 * n_points_per_cluster)
     for i in range(start + severe_count, start + severe_count + moderate_count):
-        data[i, mass_event_indices] = np.random.gamma(shape=2.8, scale=0.2, size=len(mass_event_indices))
-        data[i, mass_event_indices] += np.random.normal(0.45, 0.2, size=len(mass_event_indices))
+        for kpi_idx in mass_event_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=2.8, scale=0.2) + np.random.normal(0.45, 0.2)
 
     # Mild: early stage or resolving (30%)
     for i in range(start + severe_count + moderate_count, end):
-        data[i, mass_event_indices] = np.random.gamma(shape=2.2, scale=0.12, size=len(mass_event_indices))
-        data[i, mass_event_indices] += np.random.normal(0.25, 0.15, size=len(mass_event_indices))
+        for kpi_idx in mass_event_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=2.2, scale=0.12) + np.random.normal(0.25, 0.15)
 
     add_secondary_effects(start, end, mass_event_indices, correlation_strength=0.5)
 
@@ -148,19 +156,22 @@ def generate_synthetic_data(kpi_list, n_points_per_cluster=300, n_noise=200):
     # Critical failure (25%)
     critical_count = int(0.25 * n_points_per_cluster)
     for i in range(start, start + critical_count):
-        data[i, sleeping_indices] = np.random.gamma(shape=4.0, scale=0.32, size=len(sleeping_indices))
-        data[i, sleeping_indices] += np.random.normal(0.9, 0.18, size=len(sleeping_indices))
+        for kpi_idx in sleeping_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=4.0, scale=0.32) + np.random.normal(0.9, 0.18)
 
     # Degraded performance (45%)
     degraded_count = int(0.45 * n_points_per_cluster)
     for i in range(start + critical_count, start + critical_count + degraded_count):
-        data[i, sleeping_indices] = np.random.gamma(shape=2.6, scale=0.18, size=len(sleeping_indices))
-        data[i, sleeping_indices] += np.random.normal(0.5, 0.22, size=len(sleeping_indices))
+        for kpi_idx in sleeping_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=2.6, scale=0.18) + np.random.normal(0.5, 0.22)
 
     # Intermittent issues (30% - very hard to distinguish)
     for i in range(start + critical_count + degraded_count, end):
-        data[i, sleeping_indices] = np.random.gamma(shape=2.0, scale=0.1, size=len(sleeping_indices))
-        data[i, sleeping_indices] += np.random.normal(0.3, 0.18, size=len(sleeping_indices))
+        for kpi_idx in sleeping_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=2.0, scale=0.1) + np.random.normal(0.3, 0.18)
 
     add_secondary_effects(start, end, sleeping_indices, correlation_strength=0.35)
 
@@ -191,6 +202,10 @@ def generate_synthetic_data(kpi_list, n_points_per_cluster=300, n_noise=200):
     print(f"  - Cluster 1 (Mass Event): {n_points_per_cluster} samples (20% severe, 50% moderate, 30% mild)")
     print(f"  - Cluster 2 (Sleeping): {n_points_per_cluster} samples (25% critical, 45% degraded, 30% intermittent)")
     print(f"  - Noise: {n_noise} samples (random outliers)")
+    print(f"\n  Realism features:")
+    print(f"    • Partial anomalies: ~10% of signature KPIs remain normal per sample")
+    print(f"    • Correlated effects: 30-50% samples show cascading effects on non-primary KPIs")
+    print(f"    • Measurement noise: ±8% variability on all readings")
 
     return df_scaled, data_unscaled, np.array(labels)
 
