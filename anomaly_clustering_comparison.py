@@ -52,8 +52,8 @@ def load_4g_kpis_from_yaml(yaml_path='kpi_config_dbscan.yaml'):
 
 def generate_synthetic_data(kpi_list, n_points_per_cluster=300, n_noise=200):
     """
-    Generates a highly realistic synthetic dataset with fluctuating anomaly ceilings
-    and sporadic noise.
+    Generates realistic synthetic dataset with overlapping clusters, varying severity,
+    and correlated KPI behaviors mimicking real network anomalies.
     """
     if not kpi_list:
         print("KPI list is empty. Cannot generate data.")
@@ -61,70 +61,165 @@ def generate_synthetic_data(kpi_list, n_points_per_cluster=300, n_noise=200):
 
     n_kpis = len(kpi_list)
     total_points = 3 * n_points_per_cluster + n_noise
-    print(f"Generating final realistic data with {total_points} points and {n_kpis} KPIs.")
+    print(f"Generating realistic overlapping data with {total_points} points and {n_kpis} KPIs (using ALL KPIs from config).")
 
-    # Create a baseline of very low reconstruction error
-    data = np.random.uniform(0.0, 0.05, size=(total_points, n_kpis))
+    # Initialize with realistic baseline: most KPIs near normal with small variance
+    data = np.random.gamma(shape=2.0, scale=0.05, size=(total_points, n_kpis))
     labels = np.zeros(total_points, dtype=int)
 
-    # Helper for sporadic noise
-    def add_sporadic_noise(start, end, primary_kpis):
+    # Map KPIs to their indices for efficient lookup
+    kpi_to_idx = {kpi: idx for idx, kpi in enumerate(kpi_list)}
+
+    def get_kpi_indices(kpi_names):
+        """Get indices for KPIs that exist in the full list."""
+        return [kpi_to_idx[kpi] for kpi in kpi_names if kpi in kpi_to_idx]
+
+    # Get indices for each anomaly signature
+    uplink_indices = get_kpi_indices(UPLINK_INTERFERENCE_KPIS)
+    mass_event_indices = get_kpi_indices(MASS_EVENT_KPIS)
+    sleeping_indices = get_kpi_indices(SLEEPING_CELL_KPIS)
+
+    # Create correlated secondary effects (realistic network behavior)
+    def add_secondary_effects(start, end, primary_indices, correlation_strength=0.3):
+        """Add correlated changes to related KPIs (realistic cascading effects)."""
         for i in range(start, end):
-            for kpi_idx in range(n_kpis):
-                if kpi_list[kpi_idx] not in primary_kpis and np.random.rand() < 0.05:
-                    data[i, kpi_idx] = np.random.uniform(0.4, 0.6)
-    
-    # Helper to generate varied anomalies
-    def generate_cluster_anomalies(start, end, primary_kpis, base_level):
-        for kpi_name in primary_kpis:
-            if kpi_name in kpi_list:
-                kpi_index = kpi_list.index(kpi_name)
-                # Each KPI gets its own randomized ceiling
-                anomaly_floor = base_level - np.random.uniform(0.1, 0.2)
-                anomaly_ceiling = base_level + np.random.uniform(0.1, 0.3)
-                data[start:end, kpi_index] = np.random.uniform(anomaly_floor, anomaly_ceiling, size=n_points_per_cluster)
+            if np.random.rand() < correlation_strength:
+                # Randomly select 3-5 non-primary KPIs to show mild effects
+                all_other_indices = [idx for idx in range(n_kpis) if idx not in primary_indices]
+                affected = np.random.choice(all_other_indices, size=min(5, len(all_other_indices)), replace=False)
+                data[i, affected] += np.random.gamma(shape=1.5, scale=0.15, size=len(affected))
 
     # --- Cluster A: Uplink Interference ---
+    # Characteristics: High interference, degraded SINR, increased HARQ failures
+    # Severity varies: 30% severe, 40% moderate, 30% mild (overlapping with normal)
     start, end = 0, n_points_per_cluster
     labels[start:end] = 0
-    generate_cluster_anomalies(start, end, UPLINK_INTERFERENCE_KPIS, base_level=1.0)
-    add_sporadic_noise(start, end, UPLINK_INTERFERENCE_KPIS)
+
+    severity_split = [int(0.3 * n_points_per_cluster), int(0.7 * n_points_per_cluster)]
+
+    # Severe cases (high reconstruction error)
+    for i in range(start, start + severity_split[0]):
+        for kpi_idx in uplink_indices:
+            # 10% chance this KPI is NOT anomalous (partial anomaly)
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=3.0, scale=0.35) + np.random.normal(0.7, 0.2)
+            # else: remains at baseline
+
+    # Moderate cases (medium reconstruction error - overlaps with mild and normal)
+    for i in range(start + severity_split[0], start + severity_split[1]):
+        for kpi_idx in uplink_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=2.5, scale=0.22) + np.random.normal(0.4, 0.18)
+
+    # Mild cases (low reconstruction error - significant overlap)
+    for i in range(start + severity_split[1], end):
+        for kpi_idx in uplink_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=2.0, scale=0.15) + np.random.normal(0.2, 0.12)
+
+    add_secondary_effects(start, end, uplink_indices, correlation_strength=0.4)
 
     # --- Cluster B: Mass Event ---
+    # Characteristics: High connection attempts, resource congestion, control channel saturation
+    # More variable severity distribution
     start, end = n_points_per_cluster, 2 * n_points_per_cluster
     labels[start:end] = 1
-    generate_cluster_anomalies(start, end, MASS_EVENT_KPIS, base_level=0.8)
-    add_sporadic_noise(start, end, MASS_EVENT_KPIS)
+
+    # Severe: sudden mass event (20%)
+    severe_count = int(0.2 * n_points_per_cluster)
+    for i in range(start, start + severe_count):
+        for kpi_idx in mass_event_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=3.5, scale=0.3) + np.random.normal(0.8, 0.15)
+
+    # Moderate: building congestion (50%)
+    moderate_count = int(0.5 * n_points_per_cluster)
+    for i in range(start + severe_count, start + severe_count + moderate_count):
+        for kpi_idx in mass_event_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=2.8, scale=0.2) + np.random.normal(0.45, 0.2)
+
+    # Mild: early stage or resolving (30%)
+    for i in range(start + severe_count + moderate_count, end):
+        for kpi_idx in mass_event_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=2.2, scale=0.12) + np.random.normal(0.25, 0.15)
+
+    add_secondary_effects(start, end, mass_event_indices, correlation_strength=0.5)
 
     # --- Cluster C: Sleeping Cell ---
+    # Characteristics: Low success rates, minimal traffic, poor handovers
+    # Wide severity range (hardest to detect)
     start, end = 2 * n_points_per_cluster, 3 * n_points_per_cluster
     labels[start:end] = 2
-    generate_cluster_anomalies(start, end, SLEEPING_CELL_KPIS, base_level=1.05)
-    add_sporadic_noise(start, end, SLEEPING_CELL_KPIS)
 
-    # --- Noise Points: Lone Wolf Anomalies ---
+    # Critical failure (25%)
+    critical_count = int(0.25 * n_points_per_cluster)
+    for i in range(start, start + critical_count):
+        for kpi_idx in sleeping_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=4.0, scale=0.32) + np.random.normal(0.9, 0.18)
+
+    # Degraded performance (45%)
+    degraded_count = int(0.45 * n_points_per_cluster)
+    for i in range(start + critical_count, start + critical_count + degraded_count):
+        for kpi_idx in sleeping_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=2.6, scale=0.18) + np.random.normal(0.5, 0.22)
+
+    # Intermittent issues (30% - very hard to distinguish)
+    for i in range(start + critical_count + degraded_count, end):
+        for kpi_idx in sleeping_indices:
+            if np.random.rand() > 0.10:
+                data[i, kpi_idx] = np.random.gamma(shape=2.0, scale=0.1) + np.random.normal(0.3, 0.18)
+
+    add_secondary_effects(start, end, sleeping_indices, correlation_strength=0.35)
+
+    # --- Noise Points: True Outliers and Ambiguous Cases ---
+    # Mix of: random multi-KPI anomalies, edge cases, transient glitches
     start, end = 3 * n_points_per_cluster, total_points
     labels[start:end] = 3
-    data[start:end, :] = np.random.uniform(0.0, 1.3, size=(n_noise, n_kpis))
 
-    data_unscaled = data.copy()
-    np.clip(data_unscaled, 0, 1.5, out=data_unscaled) # Clip at a reasonable max
+    for i in range(start, end):
+        # Random multi-dimensional anomalies
+        n_affected = np.random.randint(2, 8)  # 2-7 KPIs affected randomly
+        affected_kpis = np.random.choice(n_kpis, size=n_affected, replace=False)
+        data[i, affected_kpis] = np.random.gamma(shape=2.5, scale=0.25, size=n_affected)
+        data[i, affected_kpis] += np.random.uniform(0.1, 1.0, size=n_affected)
+
+    # Add realistic measurement noise to ALL data
+    noise_factor = np.random.normal(1.0, 0.08, size=(total_points, n_kpis))
+    data = data * noise_factor
+
+    data_unscaled = np.clip(data, 0, 2.5)  # Realistic max ceiling
 
     scaler = StandardScaler()
     data_scaled = scaler.fit_transform(data_unscaled)
     df_scaled = pd.DataFrame(data_scaled, columns=kpi_list)
+
+    print(f"Data generation complete. Cluster overlap intentionally high for realism.")
+    print(f"  - Cluster 0 (Uplink): {n_points_per_cluster} samples (30% severe, 40% moderate, 30% mild)")
+    print(f"  - Cluster 1 (Mass Event): {n_points_per_cluster} samples (20% severe, 50% moderate, 30% mild)")
+    print(f"  - Cluster 2 (Sleeping): {n_points_per_cluster} samples (25% critical, 45% degraded, 30% intermittent)")
+    print(f"  - Noise: {n_noise} samples (random outliers)")
+    print(f"\n  Realism features:")
+    print(f"    • Partial anomalies: ~10% of signature KPIs remain normal per sample")
+    print(f"    • Correlated effects: 30-50% samples show cascading effects on non-primary KPIs")
+    print(f"    • Measurement noise: ±8% variability on all readings")
+
     return df_scaled, data_unscaled, np.array(labels)
 
 def run_clustering_analysis(X, y_true):
     """
-    Applies K-means, DBSCAN, and HDBSCAN, and prints a detailed analysis.
+    Applies K-means, DBSCAN (Euclidean & Cosine), and HDBSCAN (Euclidean & Cosine).
+    Compares performance across distance metrics.
     """
     print("\n" + "="*80)
-    print("Starting Clustering Model Application and Analysis")
+    print("Starting Comprehensive Clustering Analysis with Distance Metric Comparison")
     print("="*80 + "\n")
     results = {}
 
-    print("\n--- 1. K-means Analysis ---\n")
+    print("\n--- 1. K-means Analysis (uses Euclidean by default) ---\n")
     for k in [3, 4]:
         kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
         y_pred = kmeans.fit_predict(X)
@@ -133,76 +228,271 @@ def run_clustering_analysis(X, y_true):
         silhouette = silhouette_score(X, y_pred)
         print(f"K-means (k={k}): ARI={ari:.4f}, Silhouette={silhouette:.4f}")
 
-    print("\n--- 2. DBSCAN Analysis (Metric: Cosine) ---\n")
-    distances = pairwise_distances(X, metric='cosine')
-    nn_distances = np.sort(np.min(distances + np.eye(len(distances)), axis=1))
-    eps_values = {'small': np.quantile(nn_distances, 0.3), 'medium': np.quantile(nn_distances, 0.6), 'large': np.quantile(nn_distances, 0.95)}
-    print(f"Experimenting with 3 Epsilon values: Small (~{eps_values['small']:.3f}), Medium (~{eps_values['medium']:.3f}), Large (~{eps_values['large']:.3f})\n")
-    for name, eps in eps_values.items():
-        dbscan = DBSCAN(eps=eps, min_samples=10, metric='cosine')
-        y_pred = dbscan.fit_predict(X)
-        results[f'dbscan_{name}'] = y_pred
+    # DBSCAN with BOTH distance metrics
+    metrics_to_test = ['euclidean', 'cosine']
+
+    for metric in metrics_to_test:
+        print(f"\n--- 2. DBSCAN Analysis (Metric: {metric.upper()}) ---\n")
+
+        # Calculate adaptive epsilon values based on k-nearest neighbors
+        distances = pairwise_distances(X, metric=metric)
+        # Get distance to 10th nearest neighbor (min_samples=10)
+        k_distances = np.sort(distances, axis=1)[:, 10]
+        k_distances_sorted = np.sort(k_distances)
+
+        # Use different percentiles for Euclidean (needs larger epsilon in high dims)
+        if metric == 'euclidean':
+            # For high-dimensional scaled data, use larger percentiles
+            eps_values = {
+                'small': np.percentile(k_distances_sorted, 40),
+                'medium': np.percentile(k_distances_sorted, 60),
+                'large': np.percentile(k_distances_sorted, 80)
+            }
+        else:
+            # Cosine is bounded [0,2], use standard percentiles
+            eps_values = {
+                'small': np.percentile(k_distances_sorted, 25),
+                'medium': np.percentile(k_distances_sorted, 50),
+                'large': np.percentile(k_distances_sorted, 75)
+            }
+
+        print(f"Auto-calculated Epsilon values for {metric}:")
+        print(f"  Small (P25):  ε = {eps_values['small']:.4f}")
+        print(f"  Medium (P50): ε = {eps_values['medium']:.4f}")
+        print(f"  Large (P75):  ε = {eps_values['large']:.4f}\n")
+
+        for eps_name, eps in eps_values.items():
+            dbscan = DBSCAN(eps=eps, min_samples=10, metric=metric)
+            y_pred = dbscan.fit_predict(X)
+            results[f'dbscan_{metric}_{eps_name}'] = y_pred
+
+            n_clusters = len(set(y_pred)) - (1 if -1 in y_pred else 0)
+            n_noise = np.sum(y_pred == -1)
+            ari = adjusted_rand_score(y_true, y_pred)
+
+            # Calculate silhouette only if we have >1 cluster and not all noise
+            if n_clusters > 1 and n_noise < len(X):
+                try:
+                    sil = silhouette_score(X, y_pred, metric=metric)
+                    print(f"  DBSCAN-{metric} (ε={eps:.4f} '{eps_name}'): "
+                          f"Clusters={n_clusters}, Noise={n_noise} ({n_noise/len(X):.1%}), "
+                          f"ARI={ari:.4f}, Silhouette={sil:.4f}")
+                except:
+                    print(f"  DBSCAN-{metric} (ε={eps:.4f} '{eps_name}'): "
+                          f"Clusters={n_clusters}, Noise={n_noise} ({n_noise/len(X):.1%}), "
+                          f"ARI={ari:.4f}, Silhouette=N/A")
+            else:
+                print(f"  DBSCAN-{metric} (ε={eps:.4f} '{eps_name}'): "
+                      f"Clusters={n_clusters}, Noise={n_noise} ({n_noise/len(X):.1%}), "
+                      f"ARI={ari:.4f}")
+
+    # HDBSCAN with BOTH distance metrics
+    print(f"\n--- 3. HDBSCAN Analysis (comparing distance metrics) ---\n")
+
+    for metric in metrics_to_test:
+        algorithm = 'generic' if metric == 'cosine' else 'best'
+        hdb = hdbscan.HDBSCAN(min_cluster_size=15, metric=metric, algorithm=algorithm)
+        y_pred = hdb.fit_predict(X)
+        results[f'hdbscan_{metric}'] = y_pred
+
         n_clusters = len(set(y_pred)) - (1 if -1 in y_pred else 0)
         n_noise = np.sum(y_pred == -1)
-        print(f"DBSCAN (Epsilon={eps:.3f} - '{name}'): Clusters={n_clusters}, Noise={n_noise} ({n_noise/len(X):.1%}), ARI={adjusted_rand_score(y_true, y_pred):.4f}")
+        ari = adjusted_rand_score(y_true, y_pred)
 
-    print("\n--- 3. HDBSCAN Analysis (Metric: Cosine) ---\n")
-    hdb = hdbscan.HDBSCAN(min_cluster_size=15, metric='cosine', algorithm='generic')
-    y_pred = hdb.fit_predict(X)
-    results['hdbscan'] = y_pred
-    n_clusters = len(set(y_pred)) - (1 if -1 in y_pred else 0)
-    n_noise = np.sum(y_pred == -1)
-    print(f"HDBSCAN: Clusters={n_clusters}, Noise={n_noise} ({n_noise/len(X):.1%}), ARI={adjusted_rand_score(y_true, y_pred):.4f}")
+        if n_clusters > 1 and n_noise < len(X):
+            try:
+                sil = silhouette_score(X, y_pred, metric=metric)
+                print(f"  HDBSCAN-{metric}: Clusters={n_clusters}, Noise={n_noise} ({n_noise/len(X):.1%}), "
+                      f"ARI={ari:.4f}, Silhouette={sil:.4f}")
+            except:
+                print(f"  HDBSCAN-{metric}: Clusters={n_clusters}, Noise={n_noise} ({n_noise/len(X):.1%}), "
+                      f"ARI={ari:.4f}, Silhouette=N/A")
+        else:
+            print(f"  HDBSCAN-{metric}: Clusters={n_clusters}, Noise={n_noise} ({n_noise/len(X):.1%}), "
+                  f"ARI={ari:.4f}")
+
+    # Summary comparison
+    print("\n" + "="*80)
+    print("DISTANCE METRIC COMPARISON SUMMARY")
+    print("="*80)
+    print("\nBest performing configurations by ARI score:")
+
+    # Find best performer per algorithm type
+    ari_scores = {}
+    for name, labels in results.items():
+        ari_scores[name] = adjusted_rand_score(y_true, labels)
+
+    sorted_results = sorted(ari_scores.items(), key=lambda x: x[1], reverse=True)
+    print("\nTop 5 Overall:")
+    for i, (name, score) in enumerate(sorted_results[:5], 1):
+        print(f"  {i}. {name:30s} ARI = {score:.4f}")
 
     return results
 
 def visualize_results(X, y_true, clustering_results):
     """
-    Generates and saves 2x4 plots comparing all clustering results using PCA and t-SNE.
+    Generates comprehensive visualizations comparing clustering results.
+    Shows ground truth + best performers from each algorithm family.
     """
-    print("\nGenerating scatter plot visualizations...")
+    print("\nGenerating comprehensive scatter plot visualizations...")
     cluster_map_true = {0: 'Uplink Interference', 1: 'Mass Event', 2: 'Sleeping Cell', 3: 'Noise'}
     y_true_named = [cluster_map_true[l] for l in y_true]
     custom_palette = {name: color for name, color in zip(cluster_map_true.values(), sns.color_palette("viridis", 4))}
     custom_palette['Noise'] = (0.5, 0.5, 0.5)
 
+    # Select best representatives from each algorithm family
+    ari_scores = {name: adjusted_rand_score(y_true, labels) for name, labels in clustering_results.items()}
+
+    # Pick best from each family
+    best_algorithms = {'ground_truth': ('Ground Truth', None)}
+
+    # K-means
+    kmeans_results = {k: v for k, v in ari_scores.items() if k.startswith('kmeans')}
+    if kmeans_results:
+        best_kmeans = max(kmeans_results, key=kmeans_results.get)
+        best_algorithms[best_kmeans] = (f"K-means (best: k={best_kmeans.split('_')[1]}, ARI={ari_scores[best_kmeans]:.3f})", ari_scores[best_kmeans])
+
+    # DBSCAN Euclidean
+    dbscan_euc = {k: v for k, v in ari_scores.items() if k.startswith('dbscan_euclidean')}
+    if dbscan_euc:
+        best_euc = max(dbscan_euc, key=dbscan_euc.get)
+        eps_type = best_euc.split('_')[-1]
+        best_algorithms[best_euc] = (f"DBSCAN-Euclidean (best: {eps_type} ε, ARI={ari_scores[best_euc]:.3f})", ari_scores[best_euc])
+
+    # DBSCAN Cosine
+    dbscan_cos = {k: v for k, v in ari_scores.items() if k.startswith('dbscan_cosine')}
+    if dbscan_cos:
+        best_cos = max(dbscan_cos, key=dbscan_cos.get)
+        eps_type = best_cos.split('_')[-1]
+        best_algorithms[best_cos] = (f"DBSCAN-Cosine (best: {eps_type} ε, ARI={ari_scores[best_cos]:.3f})", ari_scores[best_cos])
+
+    # HDBSCAN Euclidean
+    if 'hdbscan_euclidean' in ari_scores:
+        best_algorithms['hdbscan_euclidean'] = (f"HDBSCAN-Euclidean (ARI={ari_scores['hdbscan_euclidean']:.3f})", ari_scores['hdbscan_euclidean'])
+
+    # HDBSCAN Cosine
+    if 'hdbscan_cosine' in ari_scores:
+        best_algorithms['hdbscan_cosine'] = (f"HDBSCAN-Cosine (ARI={ari_scores['hdbscan_cosine']:.3f})", ari_scores['hdbscan_cosine'])
+
+    plot_keys = list(best_algorithms.keys())
+    n_plots = len(plot_keys)
+
     reducers = {'PCA': PCA(n_components=2, random_state=42), 't-SNE': TSNE(n_components=2, random_state=42, perplexity=50, max_iter=1000)}
-    plot_titles = {'ground_truth': 'Ground Truth', 'kmeans_3': 'K-means (k=3)', 'kmeans_4': 'K-means (k=4)', 'dbscan_small': 'DBSCAN (Small ε)', 'dbscan_medium': 'DBSCAN (Medium ε)', 'dbscan_large': 'DBSCAN (Large ε)', 'hdbscan': 'HDBSCAN'}
-    plot_keys = list(plot_titles.keys())
 
     for reducer_name, reducer in reducers.items():
+        print(f"  Applying {reducer_name} dimensionality reduction...")
         X_2d = reducer.fit_transform(X)
-        fig, axes = plt.subplots(2, 4, figsize=(28, 14))
-        fig.suptitle(f'Clustering Comparison with {reducer_name} Reduction', fontsize=22, y=0.97)
+
+        # Create grid layout (2 rows, enough columns)
+        n_cols = min(4, n_plots)
+        n_rows = (n_plots + n_cols - 1) // n_cols
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(7*n_cols, 7*n_rows))
+        fig.suptitle(f'Clustering Comparison: Best Algorithms per Family ({reducer_name} Reduction)', fontsize=22, y=0.98)
+
+        if n_rows == 1:
+            axes = axes.reshape(1, -1)
         ax_flat = axes.flatten()
 
         for i, key in enumerate(plot_keys):
             ax = ax_flat[i]
-            ax.set_title(plot_titles[key], fontsize=16)
+            title, score = best_algorithms[key]
+            ax.set_title(title, fontsize=14, fontweight='bold')
+
             if key == 'ground_truth':
-                sns.scatterplot(x=X_2d[:, 0], y=X_2d[:, 1], hue=y_true_named, palette=custom_palette, ax=ax, s=50, alpha=0.7)
+                sns.scatterplot(x=X_2d[:, 0], y=X_2d[:, 1], hue=y_true_named, palette=custom_palette, ax=ax, s=50, alpha=0.6, edgecolor='none')
             else:
                 y_pred = clustering_results[key]
                 n_clusters_pred = len(set(y_pred))
-                algo_palette = sns.color_palette("deep", n_clusters_pred)
+                algo_palette = sns.color_palette("husl", n_clusters_pred)
                 if -1 in y_pred:
                     cluster_labels = sorted(list(set(y_pred)))
-                    color_map = {label: algo_palette[i] for i, label in enumerate(cluster_labels) if label != -1}
-                    color_map[-1] = (0.5, 0.5, 0.5)
+                    color_map = {label: algo_palette[j] for j, label in enumerate(cluster_labels) if label != -1}
+                    color_map[-1] = (0.3, 0.3, 0.3)  # Dark gray for noise
                     final_palette = [color_map.get(l) for l in y_pred]
                 else:
                     final_palette = algo_palette
-                sns.scatterplot(x=X_2d[:, 0], y=X_2d[:, 1], hue=y_pred, palette=final_palette, ax=ax, s=50, alpha=0.7, legend='full')
-            
-            ax.set(xlabel=None, ylabel=None, xticklabels=[], yticklabels=[])
-            if ax.get_legend(): ax.legend(loc='upper right', prop={'size': 10})
-        
-        ax_flat[7].axis('off')
-        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        filename = f"clustering_comparison_{reducer_name}.png"
-        plt.savefig(filename, dpi=150, bbox_inches='tight')
-        print(f"Saved visualization to {filename}")
+                sns.scatterplot(x=X_2d[:, 0], y=X_2d[:, 1], hue=y_pred, palette=final_palette, ax=ax, s=50, alpha=0.6, edgecolor='none', legend='brief')
+
+            ax.set(xlabel=f'{reducer_name}1', ylabel=f'{reducer_name}2')
+            if ax.get_legend():
+                ax.legend(loc='best', prop={'size': 9}, framealpha=0.7)
+
+        # Hide unused subplots
+        for i in range(n_plots, len(ax_flat)):
+            ax_flat[i].axis('off')
+
+        plt.tight_layout(rect=[0, 0.01, 1, 0.97])
+        filename = f"clustering_comparison_best_{reducer_name}.png"
+        plt.savefig(filename, dpi=200, bbox_inches='tight')
+        print(f"  Saved visualization to {filename}")
         plt.close()
+
+    # Create additional metric comparison visualization
+    print("\n  Creating distance metric comparison chart...")
+    create_metric_comparison_plot(ari_scores)
+
+def create_metric_comparison_plot(ari_scores):
+    """Creates a bar chart comparing Euclidean vs Cosine distance metrics."""
+    # Separate results by algorithm and metric
+    comparison_data = []
+
+    for name, score in ari_scores.items():
+        if 'dbscan_euclidean' in name:
+            eps_type = name.split('_')[-1]
+            comparison_data.append({'Algorithm': f'DBSCAN-{eps_type}', 'Metric': 'Euclidean', 'ARI': score})
+        elif 'dbscan_cosine' in name:
+            eps_type = name.split('_')[-1]
+            comparison_data.append({'Algorithm': f'DBSCAN-{eps_type}', 'Metric': 'Cosine', 'ARI': score})
+        elif name == 'hdbscan_euclidean':
+            comparison_data.append({'Algorithm': 'HDBSCAN', 'Metric': 'Euclidean', 'ARI': score})
+        elif name == 'hdbscan_cosine':
+            comparison_data.append({'Algorithm': 'HDBSCAN', 'Metric': 'Cosine', 'ARI': score})
+
+    if not comparison_data:
+        print("  No metric comparison data available.")
+        return
+
+    df_comparison = pd.DataFrame(comparison_data)
+
+    # Create grouped bar chart
+    fig, ax = plt.subplots(1, 1, figsize=(14, 7))
+
+    algorithms = df_comparison['Algorithm'].unique()
+    x = np.arange(len(algorithms))
+    width = 0.35
+
+    euclidean_scores = []
+    cosine_scores = []
+
+    for algo in algorithms:
+        euc = df_comparison[(df_comparison['Algorithm'] == algo) & (df_comparison['Metric'] == 'Euclidean')]
+        cos = df_comparison[(df_comparison['Algorithm'] == algo) & (df_comparison['Metric'] == 'Cosine')]
+        euclidean_scores.append(euc['ARI'].values[0] if len(euc) > 0 else 0)
+        cosine_scores.append(cos['ARI'].values[0] if len(cos) > 0 else 0)
+
+    bars1 = ax.bar(x - width/2, euclidean_scores, width, label='Euclidean Distance', color='#2E86AB', alpha=0.8)
+    bars2 = ax.bar(x + width/2, cosine_scores, width, label='Cosine Distance', color='#A23B72', alpha=0.8)
+
+    # Add value labels on bars
+    for bars in [bars1, bars2]:
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height,
+                   f'{height:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+    ax.set_xlabel('Algorithm Configuration', fontsize=14, fontweight='bold')
+    ax.set_ylabel('ARI Score (Adjusted Rand Index)', fontsize=14, fontweight='bold')
+    ax.set_title('Distance Metric Comparison: Euclidean vs Cosine\n(Higher ARI = Better Agreement with Ground Truth)', fontsize=16, fontweight='bold')
+    ax.set_xticks(x)
+    ax.set_xticklabels(algorithms, rotation=15, ha='right')
+    ax.legend(loc='upper left', fontsize=12, framealpha=0.9)
+    ax.grid(axis='y', alpha=0.3, linestyle='--')
+    ax.set_ylim([0, max(max(euclidean_scores), max(cosine_scores)) * 1.15])
+
+    plt.tight_layout()
+    plt.savefig('distance_metric_comparison.png', dpi=200, bbox_inches='tight')
+    print(f"  Saved metric comparison to distance_metric_comparison.png")
+    plt.close()
 
 def visualize_kpi_patterns_beautifully(data, labels, kpi_names):
     """
@@ -274,20 +564,106 @@ def visualize_kpi_patterns_beautifully(data, labels, kpi_names):
 
 def main():
     """Main function to run the entire pipeline."""
+    print("="*80)
+    print("DBSCAN CLUSTERING PIPELINE - COMPREHENSIVE ALGORITHM COMPARISON")
+    print("="*80)
+    print("\nInitializing pipeline...")
+
     kpi_map = load_4g_kpis_from_yaml()
     if not kpi_map:
+        print("ERROR: Failed to load KPI configuration from YAML.")
         return
-    
+
     kpi_names = list(kpi_map.keys())
+    print(f"\n✓ Loaded {len(kpi_names)} KPIs from configuration file (kpi_config_dbscan.yaml)")
+    print(f"  KPIs loaded: {', '.join(kpi_names[:5])}... (showing first 5)")
+
+    # Verify that we have all expected KPIs
+    expected_categories = {
+        'Accessibility': ['rach_success_rate', 'rrc_success_rate', 'erab_success_rate'],
+        'Retainability': ['erab_abnormal_drops', 'erab_normal_drops'],
+        'Traffic': ['active_users_dl', 'data_volume_dl', 'prb_utilization_dl'],
+        'Quality': ['ul_sinr_pusch_mean', 'dl_cqi_mean', 'interference_mean'],
+        'Mobility': ['handover_success_rate']
+    }
+
+    print("\n✓ KPI Categories Present:")
+    for category, sample_kpis in expected_categories.items():
+        present = sum(1 for kpi in sample_kpis if kpi in kpi_names)
+        print(f"  - {category}: {present}/{len(sample_kpis)} sample KPIs found")
 
     X_scaled, X_unscaled, y_true = generate_synthetic_data(kpi_names, n_points_per_cluster=300, n_noise=200)
-    
+
     if X_scaled is None:
+        print("ERROR: Data generation failed.")
         return
-        
-    results = run_clustering_analysis(X_scaled, y_true)
+
+    print(f"\n✓ Generated dataset shape: {X_scaled.shape} (samples × KPIs)")
+
+    # Add diagnostic: show why patterns cluster differently
+    print("\n" + "="*80)
+    print("PATTERN ANALYSIS: Why Different Anomalies Form Unique Clusters")
+    print("="*80)
+
+    # Calculate cluster centroids in feature space
+    from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
+
+    cluster_centroids = {}
+    for label in [0, 1, 2]:
+        cluster_data = X_scaled.values[y_true == label]
+        centroid = cluster_data.mean(axis=0)
+        cluster_centroids[label] = centroid
+
+    cluster_names = {0: 'Uplink Interference', 1: 'Mass Event', 2: 'Sleeping Cell'}
+
+    print("\n1. Cosine Similarity Between Cluster Centroids (measures pattern direction):")
+    print("   (1.0 = identical pattern, 0.0 = orthogonal, -1.0 = opposite)\n")
+    for i in [0, 1]:
+        for j in [i+1, 2]:
+            if i < j:
+                sim = cosine_similarity(cluster_centroids[i].reshape(1, -1),
+                                       cluster_centroids[j].reshape(1, -1))[0, 0]
+                print(f"   {cluster_names[i]:20s} <-> {cluster_names[j]:20s}: {sim:6.3f}")
+
+    print("\n2. Euclidean Distance Between Cluster Centroids (scaled space):")
+    print("   (larger = more separated)\n")
+    for i in [0, 1]:
+        for j in [i+1, 2]:
+            if i < j:
+                dist = euclidean_distances(cluster_centroids[i].reshape(1, -1),
+                                          cluster_centroids[j].reshape(1, -1))[0, 0]
+                print(f"   {cluster_names[i]:20s} <-> {cluster_names[j]:20s}: {dist:6.3f}")
+
+    print("\n3. Average Intra-Cluster Spread (why overlap is challenging):")
+    for label in [0, 1, 2]:
+        cluster_data = X_scaled.values[y_true == label]
+        centroid = cluster_centroids[label]
+        avg_distance_to_centroid = euclidean_distances(cluster_data, centroid.reshape(1, -1)).mean()
+        print(f"   {cluster_names[label]:20s}: avg distance to centroid = {avg_distance_to_centroid:.3f}")
+
+    print("\n→ Key Insight: Cosine similarity is LOW between different anomaly types")
+    print("  (different KPI patterns/directions), while Euclidean distances overlap")
+    print("  due to varying severity levels within each cluster.")
+    print("="*80 + "\n")
+
+    results = run_clustering_analysis(X_scaled.values, y_true)
     visualize_results(X_scaled.values, y_true, results)
     visualize_kpi_patterns_beautifully(X_unscaled, y_true, kpi_names)
+
+    print("\n" + "="*80)
+    print("PIPELINE COMPLETE")
+    print("="*80)
+    print("\nGenerated outputs:")
+    print("  1. clustering_comparison_best_PCA.png - PCA-based cluster visualization")
+    print("  2. clustering_comparison_best_t-SNE.png - t-SNE-based cluster visualization")
+    print("  3. distance_metric_comparison.png - Euclidean vs Cosine comparison")
+    print("  4. kpi_patterns_beautiful.png - KPI signature patterns per anomaly type")
+    print("\nRecommendations based on results:")
+    print("  - Check the 'Top 5 Overall' summary above for best algorithm")
+    print("  - Compare Euclidean vs Cosine metrics in distance_metric_comparison.png")
+    print("  - Examine cluster overlap in t-SNE plots to assess task difficulty")
+    print("  - Review KPI patterns to understand anomaly signatures")
+    print("\n" + "="*80)
 
 if __name__ == "__main__":
     main()
