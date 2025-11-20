@@ -1,0 +1,1257 @@
+# Combined KPI Configuration for 4G and 5G Networks (DT POC)
+# This file merges KPI definitions and distribution configurations
+# Last Updated: 30-Oct-2025
+
+version: "1.0"
+vendor: "DT"
+
+# 4G KPI Definitions (34 Core Features + 1 Expansion)
+kpis_4g:
+  # ==================== ACCESSIBILITY KPIs ====================
+  - name: rach_success_rate
+    title: "RACH Success Rate"
+    formula: "(pmRaSuccCbra / pmRaAttCbra) * 100"
+    unit: "%"
+    dependencies:
+      - "pmRaSuccCbra"
+      - "pmRaAttCbra"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "The earliest measure of user access. A drop here is a critical, low-level indicator"
+
+  - name: rrc_connection_attempts
+    title: "RRC Connection Attempts"
+    formula: "pmRrcConnEstabAtt"
+    unit: "count"
+    dependencies:
+      - "pmRrcConnEstabAtt"
+    valid_range: [0, 1000000]
+    absurd_range: [0, 10000000]
+    description: "The raw demand for connections"
+
+  - name: rrc_success_rate
+    title: "RRC Success Rate"
+    formula: "(pmRrcConnEstabSucc / pmRrcConnEstabAtt) * 100"
+    unit: "%"
+    dependencies:
+      - "pmRrcConnEstabSucc"
+      - "pmRrcConnEstabAtt"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "The single most important measure of accessibility"
+
+  - name: erab_attempts
+    title: "E-RAB Attempts"
+    formula: "pmErabEstabAttInit"
+    unit: "count"
+    dependencies:
+      - "pmErabEstabAttInit"
+    valid_range: [0, 1000000]
+    absurd_range: [0, 10000000]
+    description: "Demand for actual data bearers"
+
+  - name: erab_success_rate
+    title: "E-RAB Success Rate"
+    formula: "(pmErabEstabSuccInit / pmErabEstabAttInit) * 100"
+    unit: "%"
+    dependencies:
+      - "pmErabEstabSuccInit"
+      - "pmErabEstabAttInit"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Measures the success of setting up the actual data bearer for the user"
+
+  # ==================== RETAINABILITY KPIs ====================
+  - name: erab_abnormal_drops
+    title: "E-RAB Abnormal Drops"
+    formula: "pmErabRelAbnormalEnb"
+    unit: "count"
+    dependencies:
+      - "pmErabRelAbnormalEnb"
+    valid_range: [0, 100000]
+    absurd_range: [0, 10000000]
+    description: "The key early warning indicator for developing problems"
+
+  - name: erab_normal_drops
+    title: "E-RAB Normal Drops"
+    formula: "pmErabRelNormalEnb"
+    unit: "count"
+    dependencies:
+      - "pmErabRelNormalEnb"
+    valid_range: [0, 100000]
+    absurd_range: [0, 10000000]
+    description: "Provides a baseline for normal user session ends"
+
+  # ==================== TRAFFIC & LOAD (DL) KPIs ====================
+  - name: active_users_dl
+    title: "Active Users DL"
+    formula: "pmActiveUeDlSum"
+    unit: "count"
+    dependencies:
+      - "pmActiveUeDlSum"
+    valid_range: [0, 5000]
+    absurd_range: [0, 100000]
+    description: "The primary measure of how many users the cell is actively serving"
+
+  - name: max_active_users_dl
+    title: "Max Active Users DL"
+    formula: "pmActiveUeDlMax"
+    unit: "count"
+    dependencies:
+      - "pmActiveUeDlMax"
+    valid_range: [0, 5000]
+    absurd_range: [0, 100000]
+    description: "The primary measure of max users the cell is actively serving"
+
+  - name: data_volume_dl
+    title: "Data Volume DL"
+    formula: "pmPdcpVolDlDrb / 8_000_000"
+    unit: "GB"
+    dependencies:
+      - "pmPdcpVolDlDrb"
+    valid_range: [0, 100]
+    absurd_range: [0, 1000]
+    description: "Measures the total user data throughput. A direct measure of the cell's main function. Counter unit is in kbits."
+
+  - name: prb_utilization_dl
+    title: "PRB Utilization DL"
+    formula: "pmPrbUtilDl"
+    unit: "%"
+    dependencies:
+      - "pmPrbUtilDl"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Downlink radio resource load"
+
+  # ==================== TRAFFIC & LOAD (UL) KPIs ====================
+  - name: active_users_ul
+    title: "Active Users UL"
+    formula: "pmActiveUeUlSum"
+    unit: "count"
+    dependencies:
+      - "pmActiveUeUlSum"
+    valid_range: [0, 5000]
+    absurd_range: [0, 100000]
+    description: "Uplink user count"
+
+  - name: max_active_users_ul
+    title: "Max Active Users UL"
+    formula: "pmActiveUeUlMax"
+    unit: "count"
+    dependencies:
+      - "pmActiveUeUlMax"
+    valid_range: [0, 5000]
+    absurd_range: [0, 100000]
+    description: "Uplink user count"
+
+  - name: data_volume_ul
+    title: "Data Volume UL"
+    formula: "pmPdcpVolUlDrb / 8_000_000"
+    unit: "GB"
+    dependencies:
+      - "pmPdcpVolUlDrb"
+    valid_range: [0, 50]
+    absurd_range: [0, 500]
+    description: "Uplink user data throughput. Counter unit is in kbits."
+
+  - name: prb_utilization_ul
+    title: "PRB Utilization UL"
+    formula: "pmPrbUtilUl"
+    unit: "%"
+    dependencies:
+      - "pmPrbUtilUl"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Uplink radio resource load"
+
+  # ==================== UPLINK QUALITY KPIs ====================
+  - name: ul_sinr_pusch_mean
+    title: "UL SINR PUSCH Mean"
+    formula: "mean(pmSinrPuschDistr)"
+    distribution_based: true
+    distribution_counter: "pmSinrPuschDistr"
+    statistic: "mean"
+    unit: "dB"
+    dependencies:
+      - "pmSinrPuschDistr"
+    valid_range: [-20, 40]
+    absurd_range: [-20, 100]
+    description: "The best indicator of overall health of uplink radio environment"
+
+  - name: ul_sinr_pusch_std
+    title: "UL SINR PUSCH Std"
+    formula: "std(pmSinrPuschDistr)"
+    distribution_based: true
+    distribution_counter: "pmSinrPuschDistr"
+    statistic: "std"
+    unit: "dB"
+    dependencies:
+      - "pmSinrPuschDistr"
+    valid_range: [0, 30]
+    absurd_range: [0, 100]
+    description: "Measures the consistency of uplink quality"
+
+  - name: ul_sinr_pusch_median
+    title: "UL SINR PUSCH Median"
+    formula: "median(pmSinrPuschDistr)"
+    distribution_based: true
+    distribution_counter: "pmSinrPuschDistr"
+    statistic: "median"
+    unit: "dB"
+    dependencies:
+      - "pmSinrPuschDistr"
+    valid_range: [-20, 40]
+    absurd_range: [-20, 100]
+    description: "Captures the experience of worst-performing users"
+
+  - name: ul_sinr_pusch_p95
+    title: "UL SINR PUSCH P95"
+    formula: "percentile(pmSinrPuschDistr, 95)"
+    distribution_based: true
+    distribution_counter: "pmSinrPuschDistr"
+    statistic: "p95"
+    unit: "dB"
+    dependencies:
+      - "pmSinrPuschDistr"
+    valid_range: [-10, 40]
+    absurd_range: [-20, 100]
+    description: "Captures the experience of best-performing users"
+
+  - name: ul_sinr_pucch_mean
+    title: "UL SINR PUCCH Mean"
+    formula: "mean(pmSinrPucchDistr)"
+    distribution_based: true
+    distribution_counter: "pmSinrPucchDistr"
+    statistic: "mean"
+    unit: "dB"
+    dependencies:
+      - "pmSinrPucchDistr"
+    valid_range: [-20, 40]
+    absurd_range: [-20, 100]
+    description: "Monitors the health of the vital uplink control channel"
+
+  - name: ul_pathloss_mean
+    title: "UL Pathloss Mean"
+    formula: "mean(pmUlPathlossDistr)"
+    distribution_based: true
+    distribution_counter: "pmUlPathlossDistr"
+    statistic: "mean"
+    unit: "dB"
+    dependencies:
+      - "pmUlPathlossDistr"
+    valid_range: [40, 150]
+    absurd_range: [0, 300]
+    description: "Represents the average signal loss between UEs and the cell"
+
+  - name: ul_harq_failure_rate
+    title: "UL HARQ Failure Rate"
+    formula: "(sum(pmMacHarqUlFail*) / (sum(pmMacHarqUlFail*) + sum(pmMacHarqUlSucc*))) * 100"
+    unit: "%"
+    dependencies:
+      - "pmMacHarqUlFail16qam"
+      - "pmMacHarqUlFail64Qam"
+      - "pmMacHarqUlFailQpsk"
+      - "pmMacHarqUlSucc16qam"
+      - "pmMacHarqUlSucc64Qam"
+      - "pmMacHarqUlSuccQpsk"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Measures the failure rate of data transmissions"
+
+  # ==================== DOWNLINK QUALITY KPIs ====================
+  - name: dl_cqi_mean
+    title: "Downlink CQI Mean"
+    formula: "mean(pmRadioUeRepCqiDistr)"
+    distribution_based: true
+    distribution_counter: "pmRadioUeRepCqiDistr"
+    statistic: "mean"
+    unit: "index"
+    dependencies:
+      - "pmRadioUeRepCqiDistr"
+    valid_range: [0, 15]
+    absurd_range: [-5, 30]
+    description: "Measures the downlink quality as reported by users"
+
+  - name: dl_cqi_std
+    title: "Downlink CQI Std"
+    formula: "std(pmRadioUeRepCqiDistr)"
+    distribution_based: true
+    distribution_counter: "pmRadioUeRepCqiDistr"
+    statistic: "std"
+    unit: "index"
+    dependencies:
+      - "pmRadioUeRepCqiDistr"
+    valid_range: [0, 10]
+    absurd_range: [-5, 30]
+    description: "Measures the downlink quality consistency"
+
+  - name: dl_bler
+    title: "Downlink BLER"
+    formula: "(sum(pmMacHarqDlNack*) / (sum(pmMacHarqDlNack*) + sum(pmMacHarqDlAck*))) * 100"
+    unit: "%"
+    dependencies:
+      - "pmMacHarqDlNackQpsk"
+      - "pmMacHarqDlNack16qam"
+      - "pmMacHarqDlNack64qam"
+      - "pmMacHarqDlNack256qam"
+      - "pmMacHarqDlAckQpsk"
+      - "pmMacHarqDlAck16qam"
+      - "pmMacHarqDlAck64qam"
+      - "pmMacHarqDlAck256qam"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "A direct measure of radio link quality in downlink"
+
+  # ==================== UPLINK INTERFERENCE KPIs ====================
+  - name: interference_mean
+    title: "Interference Mean"
+    formula: "mean(pmRadioRecInterferencePwr)"
+    distribution_based: true
+    distribution_counter: "pmRadioRecInterferencePwr"
+    statistic: "mean"
+    unit: "dBm"
+    dependencies:
+      - "pmRadioRecInterferencePwr"
+    valid_range: [-130, -60]
+    absurd_range: [-200, 0]
+    description: "The overall noise level. Best proof of life counter"
+
+  - name: interference_std
+    title: "Interference Std"
+    formula: "std(pmRadioRecInterferencePwr)"
+    distribution_based: true
+    distribution_counter: "pmRadioRecInterferencePwr"
+    statistic: "std"
+    unit: "dB"
+    dependencies:
+      - "pmRadioRecInterferencePwr"
+    valid_range: [0, 30]
+    absurd_range: [0, 100]
+    description: "Measures the spikiness of interference"
+
+  - name: interference_median
+    title: "Interference Median"
+    formula: "median(pmRadioRecInterferencePwr)"
+    distribution_based: true
+    distribution_counter: "pmRadioRecInterferencePwr"
+    statistic: "median"
+    unit: "dBm"
+    dependencies:
+      - "pmRadioRecInterferencePwr"
+    valid_range: [-130, -60]
+    absurd_range: [-200, 0]
+    description: "Captures the median power of interference"
+
+  - name: interference_p95
+    title: "Interference P95"
+    formula: "percentile(pmRadioRecInterferencePwr, 95)"
+    distribution_based: true
+    distribution_counter: "pmRadioRecInterferencePwr"
+    statistic: "p95"
+    unit: "dBm"
+    dependencies:
+      - "pmRadioRecInterferencePwr"
+    valid_range: [-120, -40]
+    absurd_range: [-200, 10]
+    description: "Captures the p95 power of interference"
+
+  # ==================== MOBILITY KPIs ====================
+  - name: handover_success_rate
+    title: "Handover Success Rate"
+    formula: "((pmCellHoExeSuccLteInterF + pmCellHoExeSuccLteIntraF) / (pmCellHoExeAttLteInterF + pmCellHoExeAttLteIntraF)) * 100"
+    unit: "%"
+    dependencies:
+      - "pmCellHoExeSuccLteInterF"
+      - "pmCellHoExeSuccLteIntraF"
+      - "pmCellHoExeAttLteInterF"
+      - "pmCellHoExeAttLteIntraF"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Measures the cell's ability to manage user mobility"
+
+  # ==================== CONTROL PLANE HEALTH KPIs ====================
+  - name: pdcch_utilization_mean
+    title: "PDCCH Utilization Mean"
+    formula: "mean(pmPdcchCceUtil)"
+    distribution_based: true
+    distribution_counter: "pmPdcchCceUtil"
+    statistic: "mean"
+    unit: "%"
+    dependencies:
+      - "pmPdcchCceUtil"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Load on downlink control channel"
+
+  - name: pdcch_utilization_median
+    title: "PDCCH Utilization Median"
+    formula: "median(pmPdcchCceUtil)"
+    distribution_based: true
+    distribution_counter: "pmPdcchCceUtil"
+    statistic: "median"
+    unit: "%"
+    dependencies:
+      - "pmPdcchCceUtil"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Load on downlink control channel"
+
+  - name: pdcch_utilization_p95
+    title: "PDCCH Utilization P95"
+    formula: "percentile(pmPdcchCceUtil, 95)"
+    distribution_based: true
+    distribution_counter: "pmPdcchCceUtil"
+    statistic: "p95"
+    unit: "%"
+    dependencies:
+      - "pmPdcchCceUtil"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Peak load on downlink control channel"
+
+  # ==================== LATENCY KPIs ====================
+  - name: dl_packet_latency
+    title: "Downlink Packet Latency"
+    formula: "pmPdcpLatTimeDl / pmPdcpLatPktTransDl"
+    unit: "ms"
+    dependencies:
+      - "pmPdcpLatTimeDl"
+      - "pmPdcpLatPktTransDl"
+    valid_range: [0, 1000]
+    absurd_range: [0, 100000]
+    description: "Direct measurement of user experience"
+
+  # ==================== EXPANSION CANDIDATES ====================
+  - name: mme_initiated_abnormal_drops
+    title: "MME-Initiated Abnormal Drops"
+    formula: "pmErabRelAbnormalMmeAct"
+    unit: "count"
+    dependencies:
+      - "pmErabRelAbnormalMmeAct"
+    valid_range: [0, 100000]
+    absurd_range: [0, 10000000]
+    description: "Differentiates between cell and core network drops"
+
+
+# 5G KPI Definitions (38 Core Features + 4 Expansion)
+kpis_5g:
+  # ==================== ACCESSIBILITY KPIs ====================
+  - name: rach_success_rate
+    title: "RACH Success Rate"
+    formula: "(pmRadioRaCbSuccMsg3 / pmRadioRaCbPreambles) * 100"
+    unit: "%"
+    dependencies:
+      - "pmRadioRaCbSuccMsg3"
+      - "pmRadioRaCbPreambles"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Earliest measure of user access. Critical for detecting sleeping cells"
+
+  - name: rrc_connection_attempts
+    title: "RRC Connection Attempts"
+    formula: "pmRrcConnEstabAtt"
+    unit: "count"
+    dependencies:
+      - "pmRrcConnEstabAtt"
+    valid_range: [0, 1000000]
+    absurd_range: [0, 10000000]
+    description: "Raw demand for connections - key for mass event detection"
+
+  - name: rrc_success_rate
+    title: "RRC Success Rate"
+    formula: "(pmRrcConnEstabSucc / pmRrcConnEstabAtt) * 100"
+    unit: "%"
+    dependencies:
+      - "pmRrcConnEstabSucc"
+      - "pmRrcConnEstabAtt"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Most important accessibility metric"
+
+  - name: drb_attempts_5qi_aggregated
+    title: "DRB Attempts (5QI aggregated)"
+    formula: "sum(pmDrbEstabAtt5qi)"
+    distribution_based: true
+    distribution_counter: "pmDrbEstabAtt5qi"
+    statistic: "sum"
+    unit: "count"
+    dependencies:
+      - "pmDrbEstabAtt5qi"
+    valid_range: [0, 1000000]
+    absurd_range: [0, 10000000]
+    description: "Demand for data bearers across all QoS levels"
+
+  - name: drb_success_rate
+    title: "DRB Success Rate"
+    formula: "(sum(pmDrbEstabSucc5qi) / sum(pmDrbEstabAtt5qi)) * 100"
+    distribution_based: true
+    distribution_counter:
+      - "pmDrbEstabSucc5qi"
+      - "pmDrbEstabAtt5qi"
+    statistic: "sum"
+    unit: "%"
+    dependencies:
+      - "pmDrbEstabSucc5qi"
+      - "pmDrbEstabAtt5qi"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Success of data bearer establishment"
+
+  - name: ue_context_success_rate
+    title: "UE Context Success Rate"
+    formula: "(pmUeCtxtEstabSucc / pmUeCtxtEstabAtt) * 100"
+    unit: "%"
+    dependencies:
+      - "pmUeCtxtEstabSucc"
+      - "pmUeCtxtEstabAtt"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Overall UE context establishment success"
+
+  # ==================== RETAINABILITY KPIs ====================
+  - name: abnormal_drops_gnb
+    title: "Abnormal Drops (gNB)"
+    formula: "sum(pmDrbRelAbnormalGnbAct5qi)"
+    distribution_based: true
+    distribution_counter: "pmDrbRelAbnormalGnbAct5qi"
+    statistic: "sum"
+    unit: "count"
+    dependencies:
+      - "pmDrbRelAbnormalGnbAct5qi"
+    valid_range: [0, 100000]
+    absurd_range: [0, 10000000]
+    description: "Key early warning for developing problems"
+
+  - name: abnormal_drops_amf
+    title: "Abnormal Drops (AMF)"
+    formula: "sum(pmDrbRelAbnormalAmfAct5qi)"
+    distribution_based: true
+    distribution_counter: "pmDrbRelAbnormalAmfAct5qi"
+    statistic: "sum"
+    unit: "count"
+    dependencies:
+      - "pmDrbRelAbnormalAmfAct5qi"
+    valid_range: [0, 100000]
+    absurd_range: [0, 10000000]
+    description: "Core network initiated drops"
+
+  - name: normal_releases
+    title: "Normal Releases"
+    formula: "sum(pmDrbRelNormal5qi)"
+    distribution_based: true
+    distribution_counter: "pmDrbRelNormal5qi"
+    statistic: "sum"
+    unit: "count"
+    dependencies:
+      - "pmDrbRelNormal5qi"
+    valid_range: [0, 100000]
+    absurd_range: [0, 10000000]
+    description: "Baseline for normal session ends"
+
+  # ==================== TRAFFIC & LOAD (DL) KPIs ====================
+  - name: active_users_dl
+    title: "Active Users DL"
+    formula: "pmActiveUeDlSum / pmActiveUeDlSamp"
+    unit: "count"
+    dependencies:
+      - "pmActiveUeDlSum"
+      - "pmActiveUeDlSamp"
+    valid_range: [0, 10000]
+    absurd_range: [0, 1000000]
+    description: "Average active DL users"
+
+  - name: data_volume_dl
+    title: "Data Volume DL"
+    formula: "pmMacVolDlDrb / 1_000_000_000"
+    unit: "GB"
+    dependencies:
+      - "pmMacVolDlDrb"
+    valid_range: [0, 500]
+    absurd_range: [0, 5000]
+    description: "Total downlink throughput. Counter unit is in Bytes."
+
+  - name: rb_symbol_utilization_dl
+    title: "RB Symbol Utilization DL"
+    formula: "((pmMacRBSymUsedPdschTypeA + pmMacRBSymUsedPdschTypeB) / pmMacRBSymAvailDl) * 100"
+    unit: "%"
+    dependencies:
+      - "pmMacRBSymUsedPdschTypeA"
+      - "pmMacRBSymUsedPdschTypeB"
+      - "pmMacRBSymAvailDl"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Downlink resource utilization"
+
+  - name: pdsch_scheduling_activity
+    title: "PDSCH Scheduling Activity"
+    formula: "pmPdschSchedActivity"
+    unit: "count"
+    dependencies:
+      - "pmPdschSchedActivity"
+    valid_range: [0, 1000000]
+    absurd_range: [0, 100000000]
+    description: "Downlink scheduling load indicator"
+
+  # ==================== TRAFFIC & LOAD (UL) KPIs ====================
+  - name: active_users_ul
+    title: "Active Users UL"
+    formula: "pmActiveUeUlSum / pmActiveUeUlSamp"
+    unit: "count"
+    dependencies:
+      - "pmActiveUeUlSum"
+      - "pmActiveUeUlSamp"
+    valid_range: [0, 10000]
+    absurd_range: [0, 1000000]
+    description: "Average active UL users"
+
+  - name: data_volume_ul
+    title: "Data Volume UL"
+    formula: "pmMacVolUlResUe / 1_000_000_000"
+    unit: "GB"
+    dependencies:
+      - "pmMacVolUlResUe"
+    valid_range: [0, 250]
+    absurd_range: [0, 2500]
+    description: "Total uplink throughput. Counter unit is in Bytes."
+
+  - name: rb_symbol_utilization_ul
+    title: "RB Symbol Utilization UL"
+    formula: "((pmMacRBSymUsedPuschTypeA + pmMacRBSymUsedPuschTypeB) / pmMacRBSymAvailUl) * 100"
+    unit: "%"
+    dependencies:
+      - "pmMacRBSymUsedPuschTypeA"
+      - "pmMacRBSymUsedPuschTypeB"
+      - "pmMacRBSymAvailUl"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Uplink resource utilization"
+
+  - name: pusch_scheduling_activity
+    title: "PUSCH Scheduling Activity"
+    formula: "pmPuschSchedActivity"
+    unit: "count"
+    dependencies:
+      - "pmPuschSchedActivity"
+    valid_range: [0, 1000000]
+    absurd_range: [0, 100000000]
+    description: "Uplink scheduling load indicator"
+
+  # ==================== UPLINK QUALITY KPIs ====================
+  - name: ul_sinr_pusch_mean
+    title: "UL SINR PUSCH Mean"
+    formula: "mean(pmRadioSinrPuschDistr)"
+    distribution_based: true
+    distribution_counter: "pmRadioSinrPuschDistr"
+    statistic: "mean"
+    unit: "dB"
+    dependencies:
+      - "pmRadioSinrPuschDistr"
+    valid_range: [-20, 50]
+    absurd_range: [-20, 100]
+    description: "Overall uplink radio quality - critical for interference detection"
+
+  - name: ul_sinr_pusch_std
+    title: "UL SINR PUSCH Std"
+    formula: "std(pmRadioSinrPuschDistr)"
+    distribution_based: true
+    distribution_counter: "pmRadioSinrPuschDistr"
+    statistic: "std"
+    unit: "dB"
+    dependencies:
+      - "pmRadioSinrPuschDistr"
+    valid_range: [0, 30]
+    absurd_range: [0, 100]
+    description: "Consistency of uplink quality"
+
+  - name: ul_sinr_pusch_median
+    title: "UL SINR PUSCH Median"
+    formula: "median(pmRadioSinrPuschDistr)"
+    distribution_based: true
+    distribution_counter: "pmRadioSinrPuschDistr"
+    statistic: "median"
+    unit: "dB"
+    dependencies:
+      - "pmRadioSinrPuschDistr"
+    valid_range: [-20, 50]
+    absurd_range: [-20, 100]
+    description: "Consistency of uplink quality"
+
+  - name: ul_sinr_pusch_p95
+    title: "UL SINR PUSCH P95"
+    formula: "percentile(pmRadioSinrPuschDistr, 95)"
+    distribution_based: true
+    distribution_counter: "pmRadioSinrPuschDistr"
+    statistic: "p95"
+    unit: "dB"
+    dependencies:
+      - "pmRadioSinrPuschDistr"
+    valid_range: [-10, 50]
+    absurd_range: [-20, 100]
+    description: "Consistency of uplink quality"
+
+  - name: ul_sinr_pucch_mean
+    title: "UL SINR PUCCH Mean"
+    formula: "mean(pmRadioSinrPucchDistr)"
+    distribution_based: true
+    distribution_counter: "pmRadioSinrPucchDistr"
+    statistic: "mean"
+    unit: "dB"
+    dependencies:
+      - "pmRadioSinrPucchDistr"
+    valid_range: [-20, 50]
+    absurd_range: [-20, 100]
+    description: "Control channel health indicator"
+
+  - name: ul_harq_failure_rate
+    title: "UL HARQ Failure Rate"
+    formula: "(sum(pmMacHarqUlNack*) / (sum(pmMacHarqUlAck*) + sum(pmMacHarqUlNack*))) * 100"
+    unit: "%"
+    dependencies:
+      - "pmMacHarqUlNack16Qam"
+      - "pmMacHarqUlNack256Qam"
+      - "pmMacHarqUlNack64Qam"
+      - "pmMacHarqUlNackQpsk"
+      - "pmMacHarqUlAck16Qam"
+      - "pmMacHarqUlAck256Qam"
+      - "pmMacHarqUlAck64Qam"
+      - "pmMacHarqUlAckQpsk"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Direct impact of poor UL quality"
+
+  - name: ul_pathloss_mean
+    title: "UL Pathloss Mean"
+    formula: "mean(pmRadioPathlossUlDistr)"
+    distribution_based: true
+    distribution_counter: "pmRadioPathlossUlDistr"
+    statistic: "mean"
+    unit: "dB"
+    dependencies:
+      - "pmRadioPathlossUlDistr"
+    valid_range: [40, 170]
+    absurd_range: [0, 300]
+    description: "Average signal loss between UEs and cell"
+
+  # ==================== DOWNLINK QUALITY KPIs ====================
+  - name: dl_cqi_mean
+    title: "DL CQI Mean"
+    formula: "mean(pmRadioUeRepCqi64QamRank2Distr)"
+    distribution_based: true
+    distribution_counter: "pmRadioUeRepCqi64QamRank2Distr"
+    statistic: "mean"
+    unit: "index"
+    dependencies:
+      - "pmRadioUeRepCqi64QamRank2Distr"
+    valid_range: [0, 15]
+    absurd_range: [-5, 30]
+    description: "Downlink quality as reported by UEs"
+
+  - name: dl_cqi_std
+    title: "DL CQI Std"
+    formula: "std(pmRadioUeRepCqi64QamRank2Distr)"
+    distribution_based: true
+    distribution_counter: "pmRadioUeRepCqi64QamRank2Distr"
+    statistic: "std"
+    unit: "index"
+    dependencies:
+      - "pmRadioUeRepCqi64QamRank2Distr"
+    valid_range: [0, 10]
+    absurd_range: [-5, 30]
+    description: "Downlink quality consistency"
+
+  - name: dl_harq_failure_rate
+    title: "DL HARQ Failure Rate"
+    formula: "(sum(pmMacHarqDlNack*) / (sum(pmMacHarqDlAck*) + sum(pmMacHarqDlNack*))) * 100"
+    unit: "%"
+    dependencies:
+      - "pmMacHarqDlNack"
+      - "pmMacHarqDlAck"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Downlink transmission quality"
+
+  # ==================== UPLINK INTERFERENCE KPIs ====================
+  - name: interference_power_mean
+    title: "Interference Power Mean"
+    formula: "mean(pmRadioRecInterferencePowerDistr)"
+    distribution_based: true
+    distribution_counter: "pmRadioRecInterferencePowerDistr"
+    statistic: "mean"
+    unit: "dBm"
+    dependencies:
+      - "pmRadioRecInterferencePowerDistr"
+    valid_range: [-140, -50]
+    absurd_range: [-200, 10]
+    description: "Overall noise level - best proof of life counter"
+
+  - name: interference_power_std
+    title: "Interference Power Std"
+    formula: "std(pmRadioRecInterferencePowerDistr)"
+    distribution_based: true
+    distribution_counter: "pmRadioRecInterferencePowerDistr"
+    statistic: "std"
+    unit: "dB"
+    dependencies:
+      - "pmRadioRecInterferencePowerDistr"
+    valid_range: [0, 30]
+    absurd_range: [0, 100]
+    description: "Variability of interference"
+
+  - name: interference_power_median
+    title: "Interference Power Median"
+    formula: "median(pmRadioRecInterferencePowerDistr)"
+    distribution_based: true
+    distribution_counter: "pmRadioRecInterferencePowerDistr"
+    statistic: "median"
+    unit: "dBm"
+    dependencies:
+      - "pmRadioRecInterferencePowerDistr"
+    valid_range: [-140, -50]
+    absurd_range: [-200, 10]
+    description: "Median interference level"
+
+  - name: interference_power_p95
+    title: "Interference Power P95"
+    formula: "percentile(pmRadioRecInterferencePowerDistr, 95)"
+    distribution_based: true
+    distribution_counter: "pmRadioRecInterferencePowerDistr"
+    statistic: "p95"
+    unit: "dBm"
+    dependencies:
+      - "pmRadioRecInterferencePowerDistr"
+    valid_range: [-130, -40]
+    absurd_range: [-200, 20]
+    description: "Peak interference level"
+
+  # ==================== MOBILITY KPIs ====================
+  - name: intra_gnb_handover_success_rate
+    title: "Intra-gNB Handover Success Rate"
+    formula: "(pmHoExeSuccOutIntraGnb / pmHoExeAttOutIntraGnb) * 100"
+    unit: "%"
+    dependencies:
+      - "pmHoExeSuccOutIntraGnb"
+      - "pmHoExeAttOutIntraGnb"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Cell edge performance and coverage quality"
+
+  - name: inter_gnb_handover_success_rate
+    title: "Inter-gNB Handover Success Rate"
+    formula: "(pmHoExeSuccOutInterGnb / pmHoExeAttOutInterGnb) * 100"
+    unit: "%"
+    dependencies:
+      - "pmHoExeSuccOutInterGnb"
+      - "pmHoExeAttOutInterGnb"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Network-wide mobility health indicator"
+
+  # ==================== CONTROL PLANE & OTHER KPIs ====================
+  - name: rrc_connected_users
+    title: "RRC Connected Users"
+    formula: "pmRrcConnLevelSumSa / pmRrcConnLevelSamp"
+    unit: "count"
+    dependencies:
+      - "pmRrcConnLevelSumSa"
+      - "pmRrcConnLevelSamp"
+    valid_range: [0, 10000]
+    absurd_range: [0, 1000000]
+    description: "Average connected users - key for mass event detection"
+
+  - name: paging_received
+    title: "Paging Received"
+    formula: "pmPagReceived"
+    unit: "count"
+    dependencies:
+      - "pmPagReceived"
+    valid_range: [0, 1000000]
+    absurd_range: [0, 100000000]
+    description: "Key proof of life and control plane indicator"
+
+  - name: pdcch_utilization
+    title: "PDCCH Utilization"
+    formula: "((pmMacRBSymUsedPdcchTypeA + pmMacRBSymUsedPdcchTypeB) / pmMacRBSymAvailDl) * 100"
+    unit: "%"
+    dependencies:
+      - "pmMacRBSymUsedPdcchTypeA"
+      - "pmMacRBSymUsedPdcchTypeB"
+      - "pmMacRBSymAvailDl"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Control channel load - critical bottleneck for mass events"
+
+  - name: dl_packet_delay
+    title: "DL Packet Delay"
+    formula: "pmRlcDelayTimeDl / pmRlcDelayPktTransmitDl"
+    unit: "ms"
+    dependencies:
+      - "pmRlcDelayTimeDl"
+      - "pmRlcDelayPktTransmitDl"
+    valid_range: [0, 2000]
+    absurd_range: [0, 1000000]
+    description: "Direct user experience metric"
+
+  - name: endc_setup_success_rate
+    title: "EN-DC Setup Success Rate"
+    formula: "(pmEndcSetupUeSucc / pmEndcSetupUeAtt) * 100"
+    unit: "%"
+    dependencies:
+      - "pmEndcSetupUeSucc"
+      - "pmEndcSetupUeAtt"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "NSA performance indicator (zero if SA deployment)"
+
+  # ==================== EXPANSION CANDIDATES ====================
+  - name: paging_discard_rate
+    title: "Paging Discard Rate"
+    formula: "(pmPagDiscarded / pmPagReceived) * 100"
+    unit: "%"
+    dependencies:
+      - "pmPagDiscarded"
+      - "pmPagReceived"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Control plane congestion indicator for mass events"
+
+  - name: ul_rlc_retransmission_rate
+    title: "UL RLC Retransmission Rate"
+    formula: "(pmRlcArqUlNack / (pmRlcArqUlAck + pmRlcArqUlNack)) * 100"
+    unit: "%"
+    dependencies:
+      - "pmRlcArqUlNack"
+      - "pmRlcArqUlAck"
+    valid_range: [0, 100]
+    absurd_range: [0, 100]
+    description: "Early indicator of radio link quality issues"
+
+# Ericsson Distribution Configurations
+distributions_4g:
+  pmSinrPuschDistr:
+    description: "Distribution of SINR values calculated for PUSCH"
+    unit: "dB"
+    num_bins: 9
+    bins:
+      - range: "(-inf, -5]"
+        center: -7
+        label: "≤ -5 dB"
+      - range: "(-5, -2]"
+        center: -3.5
+        label: "-5 to -2 dB"
+      - range: "(-2, 2]"
+        center: 0
+        label: "-2 to 2 dB"
+      - range: "(2, 6]"
+        center: 4
+        label: "2 to 6 dB"
+      - range: "(6, 10]"
+        center: 8
+        label: "6 to 10 dB"
+      - range: "(10, 14]"
+        center: 12
+        label: "10 to 14 dB"
+      - range: "(14, 17]"
+        center: 15.5
+        label: "14 to 17 dB"
+      - range: "(17, 20]"
+        center: 18.5
+        label: "17 to 20 dB"
+      - range: "(20, inf)"
+        center: 22
+        label: "> 20 dB"
+
+  pmSinrPucchDistr:
+    description: "Distribution of SINR values calculated for PUCCH"
+    unit: "dB"
+    num_bins: 8
+    bins:
+      - range: "(-inf, -15]"
+        center: -17
+        label: "≤ -15 dB"
+      - range: "(-15, -12]"
+        center: -13.5
+        label: "-15 to -12 dB"
+      - range: "(-12, -9]"
+        center: -10.5
+        label: "-12 to -9 dB"
+      - range: "(-9, -6]"
+        center: -7.5
+        label: "-9 to -6 dB"
+      - range: "(-6, -3]"
+        center: -4.5
+        label: "-6 to -3 dB"
+      - range: "(-3, 0]"
+        center: -1.5
+        label: "-3 to 0 dB"
+      - range: "(0, 3]"
+        center: 1.5
+        label: "0 to 3 dB"
+      - range: "(3, inf)"
+        center: 5
+        label: "> 3 dB"
+
+  pmUlPathlossDistr:
+    description: "Distribution of uplink pathloss values"
+    unit: "dB"
+    num_bins: 21
+    bins:
+      - range: "(-inf, 50]"
+        center: 45
+        label: "≤ 50 dB"
+      - range: "(50, 55]"
+        center: 52.5
+        label: "50 to 55 dB"
+      - range: "(55, 60]"
+        center: 57.5
+        label: "55 to 60 dB"
+      - range: "(60, 65]"
+        center: 62.5
+        label: "60 to 65 dB"
+      - range: "(65, 70]"
+        center: 67.5
+        label: "65 to 70 dB"
+      - range: "(70, 75]"
+        center: 72.5
+        label: "70 to 75 dB"
+      - range: "(75, 80]"
+        center: 77.5
+        label: "75 to 80 dB"
+      - range: "(80, 85]"
+        center: 82.5
+        label: "80 to 85 dB"
+      - range: "(85, 90]"
+        center: 87.5
+        label: "85 to 90 dB"
+      - range: "(90, 95]"
+        center: 92.5
+        label: "90 to 95 dB"
+      - range: "(95, 100]"
+        center: 97.5
+        label: "95 to 100 dB"
+      - range: "(100, 105]"
+        center: 102.5
+        label: "100 to 105 dB"
+      - range: "(105, 110]"
+        center: 107.5
+        label: "105 to 110 dB"
+      - range: "(110, 115]"
+        center: 112.5
+        label: "110 to 115 dB"
+      - range: "(115, 120]"
+        center: 117.5
+        label: "115 to 120 dB"
+      - range: "(120, 125]"
+        center: 122.5
+        label: "120 to 125 dB"
+      - range: "(125, 130]"
+        center: 127.5
+        label: "125 to 130 dB"
+      - range: "(130, 135]"
+        center: 132.5
+        label: "130 to 135 dB"
+      - range: "(135, 140]"
+        center: 137.5
+        label: "135 to 140 dB"
+      - range: "(140, 145]"
+        center: 142.5
+        label: "140 to 145 dB"
+      - range: "(145, inf)"
+        center: 150
+        label: "> 145 dB"
+
+  pmRadioUeRepCqiDistr:
+    description: "Reported CQI values for rank 3 transmissions"
+    unit: "index"
+    num_bins: 16
+    bins:
+      - value: 0
+        center: 0
+        label: "CQI = 0"
+      - value: 1
+        center: 1
+        label: "CQI = 1"
+      - value: 2
+        center: 2
+        label: "CQI = 2"
+      - value: 3
+        center: 3
+        label: "CQI = 3"
+      - value: 4
+        center: 4
+        label: "CQI = 4"
+      - value: 5
+        center: 5
+        label: "CQI = 5"
+      - value: 6
+        center: 6
+        label: "CQI = 6"
+      - value: 7
+        center: 7
+        label: "CQI = 7"
+      - value: 8
+        center: 8
+        label: "CQI = 8"
+      - value: 9
+        center: 9
+        label: "CQI = 9"
+      - value: 10
+        center: 10
+        label: "CQI = 10"
+      - value: 11
+        center: 11
+        label: "CQI = 11"
+      - value: 12
+        center: 12
+        label: "CQI = 12"
+      - value: 13
+        center: 13
+        label: "CQI = 13"
+      - value: 14
+        center: 14
+        label: "CQI = 14"
+      - value: 15
+        center: 15
+        label: "CQI = 15"
+
+  pmRadioRecInterferencePwr:
+    description: "Noise and Interference Power on PUSCH"
+    unit: "dBm/PRB"
+    num_bins: 16
+    bins:
+      - range: "(-inf, -121]"
+        center: -125
+        label: "≤ -121 dBm/PRB"
+      - range: "(-121, -120]"
+        center: -120.5
+        label: "-121 to -120 dBm/PRB"
+      - range: "(-120, -119]"
+        center: -119.5
+        label: "-120 to -119 dBm/PRB"
+      - range: "(-119, -118]"
+        center: -118.5
+        label: "-119 to -118 dBm/PRB"
+      - range: "(-118, -117]"
+        center: -117.5
+        label: "-118 to -117 dBm/PRB"
+      - range: "(-117, -116]"
+        center: -116.5
+        label: "-117 to -116 dBm/PRB"
+      - range: "(-116, -115]"
+        center: -115.5
+        label: "-116 to -115 dBm/PRB"
+      - range: "(-115, -114]"
+        center: -114.5
+        label: "-115 to -114 dBm/PRB"
+      - range: "(-114, -113]"
+        center: -113.5
+        label: "-114 to -113 dBm/PRB"
+      - range: "(-113, -112]"
+        center: -112.5
+        label: "-113 to -112 dBm/PRB"
+      - range: "(-112, -108]"
+        center: -110
+        label: "-112 to -108 dBm/PRB"
+      - range: "(-108, -104]"
+        center: -106
+        label: "-108 to -104 dBm/PRB"
+      - range: "(-104, -100]"
+        center: -102
+        label: "-104 to -100 dBm/PRB"
+      - range: "(-100, -96]"
+        center: -98
+        label: "-100 to -96 dBm/PRB"
+      - range: "(-96, -92]"
+        center: -94
+        label: "-96 to -92 dBm/PRB"
+      - range: "(-92, inf)"
+        center: -90
+        label: "> -92 dBm/PRB"
+
+  pmPdcchCceUtil:
+    description: "PDCCH CCE Utilization percentage"
+    unit: "%"
+    num_bins: 20
+    bins:
+      - range: "[0, 5]"
+        center: 2.5
+        label: "0 to 5%"
+      - range: "(5, 10]"
+        center: 7.5
+        label: "5 to 10%"
+      - range: "(10, 15]"
+        center: 12.5
+        label: "10 to 15%"
+      - range: "(15, 20]"
+        center: 17.5
+        label: "15 to 20%"
+      - range: "(20, 25]"
+        center: 22.5
+        label: "20 to 25%"
+      - range: "(25, 30]"
+        center: 27.5
+        label: "25 to 30%"
+      - range: "(30, 35]"
+        center: 32.5
+        label: "30 to 35%"
+      - range: "(35, 40]"
+        center: 37.5
+        label: "35 to 40%"
+      - range: "(40, 45]"
+        center: 42.5
+        label: "40 to 45%"
+      - range: "(45, 50]"
+        center: 47.5
+        label: "45 to 50%"
+      - range: "(50, 55]"
+        center: 52.5
+        label: "50 to 55%"
+      - range: "(55, 60]"
+        center: 57.5
+        label: "55 to 60%"
+      - range: "(60, 65]"
+        center: 62.5
+        label: "60 to 65%"
+      - range: "(65, 70]"
+        center: 67.5
+        label: "65 to 70%"
+      - range: "(70, 75]"
+        center: 72.5
+        label: "70 to 75%"
+      - range: "(75, 80]"
+        center: 77.5
+        label: "75 to 80%"
+      - range: "(80, 85]"
+        center: 82.5
+        label: "80 to 85%"
+      - range: "(85, 90]"
+        center: 87.5
+        label: "85 to 90%"
+      - range: "(90, 95]"
+        center: 92.5
+        label: "90 to 95%"
+      - range: "(95, 100]"
+        center: 97.5
+        label: "95 to 100%"
+
+# Calculation methods for statistics
+calculation_methods:
+  mean:
+    formula: "sum(bin_center[i] * count[i]) / sum(count[i])"
+    description: "Distribution mean using bin centers"
+    
+  std:
+    formula: "sqrt(sum(count[i] * (bin_center[i] - mean)^2) / sum(count[i]))"
+    description: "Standard deviation from weighted distribution"
+    
+  median:
+    method: "bin_threshold"
+    description: "Find bin containing 50th percentile"
+    
+  percentile:
+    method: "bin_threshold"
+    description: "Find bin containing Nth percentile"
+    
+  sum:
+    method: "sum"
+    description: "Sum all values in the distribution"
+
